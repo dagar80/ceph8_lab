@@ -46,7 +46,7 @@ ceph orch host add ceph8-2.internal.lab
 ceph orch host add ceph8-3.internal.lab
 
 #label hosts to have 3 managers
-ceph orch host label add ceph8-2.internal.lab ____admin
+ceph orch host label add ceph8-2.internal.lab _admin
 ceph orch host label add ceph8-3.internal.lab _admin
 
 #config 3 monitors
