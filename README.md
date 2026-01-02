@@ -74,7 +74,7 @@ rbd create imagen_prueba --size 1024 --pool test-pool
 rbd ls -p test-pool
 ```
 
-##poweroff cluster
+## Poweroff cluster
 
 ```
 ceph osd set noout
