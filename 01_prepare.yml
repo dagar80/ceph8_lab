@@ -1,0 +1,156 @@
+---
+- name: Update servers
+  hosts: all
+  remote_user: root  
+  tasks:
+    - name: Update OS to latest
+      ansible.builtin.dnf:
+        name: "*"
+        state: latest
+
+    - name: Enable ceph 8 tools repo
+      community.general.rhsm_repository:
+        name: rhceph-8-tools-for-rhel-9-x86_64-rpms
+        state: enabled
+
+    - name: creat ceph-admin user
+      ansible.builtin.user:
+        name: ceph-admin
+        password: 'redhat123'
+        create_home: yes
+        generate_ssh_key: yes
+        ssh_key_bits: 2048
+        ssh_key_file: .ssh/id_rsa
+
+    - name: Permit root login
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config.d/01-permitrootlogin.conf
+        line: 'PermitRootLogin yes'
+        create: yes
+
+    - name: User ceph-admin into sudoers
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers.d/ceph-admin
+        line: 'ceph-admin ALL = (root) NOPASSWD:ALL'
+        create: yes
+        owner: root
+        group: root
+        mode: '0440'
+
+    - name: Get ceph-admin id_rsa.pub from bootstrap node
+      ansible.builtin.slurp:
+        src: /home/ceph-admin/.ssh/id_rsa.pub
+      register: bootstrap_pub_key_b64
+      when: inventory_hostname in groups['bootstrap']
+
+    - name: Add bootstrap id_rsa.pub into authorized_keys file
+      ansible.posix.authorized_key:
+        user: ceph-admin
+        state: present
+        # Accedemos a las variables del PRIMER host del grupo bootstrap.
+        # Decodificamos el contenido de base64 a texto plano.
+        key: "{{ hostvars[groups['bootstrap'][0]]['bootstrap_pub_key_b64']['content'] | b64decode }}"
+
+    - name: Add .ssh/config file to nodes
+      ansible.builtin.blockinfile:
+        path: /home/ceph-admin/.ssh/config
+        block: |
+          Host *
+            StrictHostKeyChecking no
+            UserKnownHostsFile=/dev/null
+          Host ceph8-1
+            Hostname ceph8-1.internal.lab
+            User ceph-admin
+          Host ceph8-2
+            Hostname ceph8-2.internal.lab
+            User ceph-admin
+          Host ceph8-3
+            Hostname ceph8-3.internal.lab
+            User ceph-admin
+        create: yes
+        owner: ceph-admin
+        group: ceph-admin
+        mode: '0600'
+
+    - name: Configure cluster network
+      community.general.nmcli:
+        conn_name: eth1
+        ifname: eth1
+        type: ethernet
+        ip4: "192.168.125.{{ 11 + groups['all'].index(inventory_hostname) }}/24"
+        state: present
+        method4: manual
+        autoconnect: yes
+
+    - name: Get actual dhcp ip address on eth0
+      set_fact:
+        current_ip: "{{ ansible_facts['eth0']['ipv4']['address'] }}"
+        current_prefix: "{{ ansible_facts['eth0']['ipv4']['prefix'] | default('24') }}"
+        current_gw: "{{ ansible_facts['default_ipv4']['gateway'] }}"
+        current_dns: "{{ ansible_facts['dns']['nameservers'] }}"
+
+    - name: Configure static ip on eth0
+      community.general.nmcli:
+        conn_name: eth0
+        ifname: eth0
+        type: ethernet
+        ip4: "{{ current_ip }}/{{ current_prefix }}"
+        gw4: "{{ current_gw }}"
+        dns4: "{{ current_dns }}"
+        method4: manual
+        state: present
+        autoconnect: yes
+
+    - name: Asegurar que el paquete 'tuned' está instalado
+      ansible.builtin.dnf:
+        name: tuned
+        state: present
+
+    - name: Asegurar que el servicio 'tuned' está arrancado y habilitado
+      ansible.builtin.service:
+        name: tuned
+        state: started
+        enabled: yes
+
+    - name: Check active tunned profile
+      ansible.builtin.command: tuned-adm active
+      register: tuned_check
+      changed_when: false
+      failed_when: false
+
+    - name: Apply tuned profile 'throughput-performance'
+      ansible.builtin.command: tuned-adm profile throughput-performance
+      when: "'throughput-performance' not in tuned_check.stdout"
+
+    - name: Ensure Storage dnf group is installed (tecnical ID)
+      ansible.builtin.dnf:
+        name: "@file-server"
+        state: present
+
+    - name: Reboot VM
+      ansible.builtin.reboot:
+        msg: "Rebooting VM in 5 seconds"
+      tags:
+        - never
+
+- name: Configure bootstrap node
+  hosts: bootstrap
+  remote_user: root
+  tasks:
+    - name: Install cephadm-ansible
+      ansible.builtin.dnf:
+        name: cephadm-ansible
+        state: present
+
+    - name: Copy hosts file
+      ansible.builtin.copy:
+        src: hosts
+        dest: /usr/share/cephadm-ansible/hosts
+
+    - name: Copy boostrap script
+      ansible.builtin.copy:
+        src: bootstrap.sh
+        dest: /home/ceph-admin/bootstrap.sh
+        owner: ceph-admin
+        group: ceph-admin
+        mode: '755'

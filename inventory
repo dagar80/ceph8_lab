@@ -1,0 +1,6 @@
+[ceph8]
+ceph8-2.internal.lab
+ceph8-3.internal.lab
+
+[bootstrap]
+ceph8-1.internal.lab

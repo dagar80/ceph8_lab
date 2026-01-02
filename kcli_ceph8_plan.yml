@@ -1,0 +1,45 @@
+ceph8-1.internal.lab:
+  image: /var/lib/libvirt/images/rhel96
+  numcpus: 4
+  memory: 6144
+  pool: default
+  disks:
+  - size: 40
+  - size: 20
+  - size: 20
+  reservedns: true
+  nets:
+  - name: default
+  - name: cluster
+  cmds:
+  - echo rh123 | passwd --stdin root
+ceph8-2.internal.lab:
+  image: /var/lib/libvirt/images/rhel96
+  numcpus: 4
+  memory: 6144
+  pool: default
+  disks:
+  - size: 40
+  - size: 20
+  - size: 20
+  reservedns: true
+  nets:
+  - name: default
+  - name: cluster
+  cmds:
+  - echo rh123 | passwd --stdin root
+ceph8-3.internal.lab:
+  image: /var/lib/libvirt/images/rhel96
+  numcpus: 4
+  memory: 6144
+  pool: default
+  disks:
+  - size: 40
+  - size: 20
+  - size: 20
+  reservedns: true
+  nets:
+  - name: default
+  - name: cluster
+  cmds:
+  - echo rh123 | passwd --stdin root
