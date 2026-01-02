@@ -18,7 +18,7 @@ Lab to create a ceph8 cluster
 ## Run ceph preflight playbook
 
 ```
-ssh ceph8-1.internal.lab
+ssh ceph-admin@ceph8-1.internal.lab
 cd /usr/share/cephadm-ansible
 ansible-playbook -i hosts cephadm-preflight.yml --extra-vars "ceph_origin=rhcs"
 ```
@@ -28,7 +28,7 @@ ansible-playbook -i hosts cephadm-preflight.yml --extra-vars "ceph_origin=rhcs"
 Update bootstrap.sh script with user and password and run it.
 
 ```
-./bootstrap.sh
+sudo ./bootstrap.sh
 ```
 
 This will create a ceph8 cluster with a single node. Next step, expand to other nodes.
